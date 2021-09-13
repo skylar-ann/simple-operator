@@ -37,11 +37,10 @@ var _ = Describe("SimpleReconciler", func() {
 		It("should create a configmap with no data", func() {
 			cm := &corev1.ConfigMap{}
 
-			Eventually(func() error {
-				return k8sClient.Get(ctx, simpleObjectKey, cm)
-			}, time.Second*3, time.Millisecond*500).Should(Succeed())
-
-			Expect(cm.Data).Should(BeEmpty())
+			Eventually(func() map[string]string {
+				k8sClient.Get(ctx, simpleObjectKey, cm)
+				return cm.Data
+			}, time.Second*3, time.Millisecond*500).Should(BeEmpty())
 		})
 
 		It("should reconcile the configmap when foo is added", func() {
@@ -83,22 +82,6 @@ var _ = Describe("SimpleReconciler", func() {
 			)
 		})
 
-		It("should have an empty configmap when simple Foo is empty", func() {
-			simple.Spec.Foo = ""
-
-			Eventually(func() error {
-				return k8sClient.Update(ctx, simple)
-			}, time.Second*3, time.Millisecond*500).Should(Succeed())
-
-			cm := &corev1.ConfigMap{}
-
-			Eventually(func() error {
-				return k8sClient.Get(ctx, simpleObjectKey, cm)
-			}, time.Second*3, time.Millisecond*500).Should(Succeed())
-
-			Expect(cm.Data).Should(BeEmpty())
-		})
-
 		It("should reconcile the configmap when it is deleted", func() {
 			cm := &corev1.ConfigMap{}
 
@@ -118,6 +101,21 @@ var _ = Describe("SimpleReconciler", func() {
 			}, time.Second*3, time.Millisecond*500).Should(
 				HaveKeyWithValue("something.conf", fmt.Sprintf("setting = %s", simple.Spec.Foo)),
 			)
+		})
+
+		It("should have an empty configmap when simple Foo is empty", func() {
+			simple.Spec.Foo = ""
+
+			Eventually(func() error {
+				return k8sClient.Update(ctx, simple)
+			}, time.Second*3, time.Millisecond*500).Should(Succeed())
+
+			cm := &corev1.ConfigMap{}
+
+			Eventually(func() map[string]string {
+				k8sClient.Get(ctx, simpleObjectKey, cm)
+				return cm.Data
+			}, time.Second*3, time.Millisecond*500).Should(BeEmpty())
 		})
 	})
 })
