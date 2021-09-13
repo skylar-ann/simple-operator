@@ -83,6 +83,22 @@ var _ = Describe("SimpleReconciler", func() {
 			)
 		})
 
+		It("should have an empty configmap when simple Foo is empty", func() {
+			simple.Spec.Foo = ""
+
+			Eventually(func() error {
+				return k8sClient.Update(ctx, simple)
+			}, time.Second*3, time.Millisecond*500).Should(Succeed())
+
+			cm := &corev1.ConfigMap{}
+
+			Eventually(func() error {
+				return k8sClient.Get(ctx, simpleObjectKey, cm)
+			}, time.Second*3, time.Millisecond*500).Should(Succeed())
+
+			Expect(cm.Data).Should(BeEmpty())
+		})
+
 		It("should reconcile the configmap when it is deleted", func() {
 			cm := &corev1.ConfigMap{}
 
