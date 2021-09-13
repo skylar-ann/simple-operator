@@ -84,6 +84,24 @@ var _ = Describe("SimpleReconciler", func() {
 		})
 
 		It("should reconcile the configmap when it is deleted", func() {
+			cm := &corev1.ConfigMap{}
+
+			Eventually(func() error {
+				return k8sClient.Get(ctx, simpleObjectKey, cm)
+			}, time.Second*3, time.Millisecond*500).Should(Succeed())
+
+			// Delete Simple's configmap
+			Eventually(func() error {
+				return k8sClient.Delete(ctx, cm)
+			}, time.Second*3, time.Millisecond*500).Should(Succeed())
+
+			// Simple's configmap should reconcile
+			Eventually(func() map[string]string {
+				k8sClient.Get(ctx, simpleObjectKey, cm)
+				return cm.Data
+			}, time.Second*3, time.Millisecond*500).Should(
+				HaveKeyWithValue("something.conf", fmt.Sprintf("setting = %s", simple.Spec.Foo)),
+			)
 		})
 	})
 })
