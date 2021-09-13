@@ -19,6 +19,9 @@ package controllers
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,6 +50,39 @@ type SimpleReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
 func (r *SimpleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// your logic here
+	logger := ctrl.LoggerFrom(ctx)
+
+	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: req.Name, Namespace: req.Namespace}}
+	cm.Data = make(map[string]string)
+
+	simple := &simplev1alpha1.Simple{}
+	err := r.Get(ctx, req.NamespacedName, simple)
+	if err != nil {
+		return ctrl.Result{}, nil
+	}
+
+	logger.Info("Simple object", "simple", simple)
+
+	_, err = ctrl.CreateOrUpdate(ctx, r.Client, cm, func() error {
+		if cm.ObjectMeta.CreationTimestamp.IsZero() {
+			return nil
+		}
+
+		cm.Data = make(map[string]string)
+
+		if err := ctrl.SetControllerReference(simple, cm, r.Scheme); err != nil {
+			logger.Error(err, "Failed to set controller ref")
+			return nil
+		}
+
+		cm.Data["something.conf"] = "setting = newdata"
+
+		logger.Info("Check tampering", "configmap", cm)
+		return nil
+	})
+	logger.Error(err, "empty cm error")
+
+	logger.Info("Empty ConfigMap", "configmap", cm)
 
 	return ctrl.Result{}, nil
 }
@@ -55,5 +91,6 @@ func (r *SimpleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *SimpleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&simplev1alpha1.Simple{}).
+		Owns(&corev1.ConfigMap{}).
 		Complete(r)
 }
